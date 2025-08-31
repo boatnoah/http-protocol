@@ -38,10 +38,15 @@ func (h Headers) Parse(data []byte) (n int, done bool, err error) {
 		return 0, false, fmt.Errorf("invalid use of characters %s", key)
 	}
 
-	val := bytes.TrimSpace(parts[1])
 	key = strings.TrimSpace(key)
+	val := string(bytes.TrimSpace(parts[1]))
 
-	h[key] = string(val)
+	if oldVal, ok := h[key]; ok {
+		joinedValue := oldVal + ", " + val
+		val = joinedValue
+	}
+
+	h[key] = val
 
 	return idx + len(crlf), false, nil
 
