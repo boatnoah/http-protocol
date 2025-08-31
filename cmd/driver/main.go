@@ -1,16 +1,15 @@
 package main
 
 import (
-	"github.com/httpfromtcp/internal/request"
-	"strings"
+	"github.com/httpfromtcp/internal/headers"
 )
 
 func main() {
 
-	_, err := request.RequestFromReader(strings.NewReader("GET / HTTP/1.1\r\nHost: localhost:42069\r\nUser-Agent: curl/7.81.0\r\nAccept: */*\r\n\r\n"))
+	h := headers.NewHeaders()
 
-	if err != nil {
-		return
-	}
+	data1 := []byte("       Host : localhost:42069       \r\n\r\n")
+
+	_, _, _ = h.Parse(data1)
 
 }
