@@ -26,7 +26,12 @@ func (h Headers) Parse(data []byte) (n int, done bool, err error) {
 		return len(crlf), true, nil
 	}
 
-	parts := bytes.SplitN(data[:idx], []byte(":"), 2)
+	line := data[:idx]
+	parts := bytes.SplitN(line, []byte(":"), 2)
+
+	if len(parts) < 2 {
+		return 0, false, fmt.Errorf("malformed header (missing colon): %q", string(line))
+	}
 
 	key := strings.ToLower(string(parts[0]))
 
