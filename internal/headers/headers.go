@@ -57,6 +57,14 @@ func (h Headers) Parse(data []byte) (n int, done bool, err error) {
 
 }
 
+func (h Headers) Get(key string) (string, error) {
+	val, ok := h[strings.ToLower(key)]
+	if ok {
+		return val, nil
+	}
+	return "", fmt.Errorf("Key does not exist")
+}
+
 func isValid(s string) bool {
 	if len(s) < 1 {
 		return false

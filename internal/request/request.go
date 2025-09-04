@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"strconv"
 	"strings"
 
 	"github.com/httpfromtcp/internal/headers"
@@ -15,12 +16,16 @@ type parserState int
 const (
 	initialState parserState = iota
 	parsingHeader
+	parsingBody
 	doneState
 )
+
+const cl = "Content-Length"
 
 type Request struct {
 	RequestLine RequestLine
 	Headers     headers.Headers
+	Body        []byte
 	State       parserState
 }
 
@@ -83,9 +88,37 @@ func (r *Request) parseSingle(data []byte) (int, error) {
 		}
 
 		if done {
-			r.State = doneState
+			r.State = parsingBody
 		}
 		return consumed, nil
+
+	case parsingBody:
+		val, err := r.Headers.Get(cl)
+
+		if err != nil {
+			r.State = doneState
+			return 0, nil
+		}
+
+		n, err := strconv.Atoi(val)
+		if n <= 0 {
+			r.State = doneState
+			return 0, nil
+		}
+
+		if len(data) > 0 {
+			r.Body = append(r.Body, data...)
+		}
+
+		if len(r.Body) > n {
+			return 0, fmt.Errorf("body larger than Content-Length (expected %d, got %d+)", n, len(r.Body))
+		}
+
+		if len(r.Body) == n {
+			r.State = doneState
+		}
+
+		return len(data), nil
 
 	case doneState:
 		return 0, nil
