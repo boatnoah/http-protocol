@@ -31,6 +31,10 @@ func main() {
 		fmt.Println("- Method:", r.RequestLine.Method)
 		fmt.Println("- Target:", r.RequestLine.RequestTarget)
 		fmt.Println("- Version:", r.RequestLine.HttpVersion)
+		fmt.Println("Headers:")
+		for k, v := range r.Headers {
+			fmt.Printf("- %s: %s\n", k, v)
+		}
 
 	}
 
