@@ -20,26 +20,26 @@ const (
 type ReasonPhrase string
 
 const (
-	reasonOk                  ReasonPhrase = "OK"
-	reasonBadRequest          ReasonPhrase = "Bad Request"
-	reasonInternalServerError ReasonPhrase = "Internal Server Error"
+	ReasonOk                  ReasonPhrase = "OK"
+	ReasonBadRequest          ReasonPhrase = "Bad Request"
+	ReasonInternalServerError ReasonPhrase = "Internal Server Error"
 )
 
 func WriteStatusLine(w io.Writer, statusCode StatusCode) error {
 	format := "HTTP/%s %d %s\r\n"
 	switch statusCode {
 	case Ok:
-		statusLine := fmt.Sprintf(format, httpVersion, statusCode, reasonOk)
+		statusLine := fmt.Sprintf(format, httpVersion, statusCode, ReasonOk)
 		if _, err := io.WriteString(w, statusLine); err != nil {
 			return err
 		}
 	case BadRequest:
-		statusLine := fmt.Sprintf(format, httpVersion, statusCode, reasonBadRequest)
+		statusLine := fmt.Sprintf(format, httpVersion, statusCode, ReasonBadRequest)
 		if _, err := io.WriteString(w, statusLine); err != nil {
 			return err
 		}
 	case InternalServerError:
-		statusLine := fmt.Sprintf(format, httpVersion, statusCode, reasonInternalServerError)
+		statusLine := fmt.Sprintf(format, httpVersion, statusCode, ReasonInternalServerError)
 		if _, err := io.WriteString(w, statusLine); err != nil {
 			return err
 		}
