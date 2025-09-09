@@ -7,6 +7,7 @@ import (
 	"os/signal"
 	"syscall"
 
+	"github.com/httpfromtcp/internal/headers"
 	"github.com/httpfromtcp/internal/request"
 	"github.com/httpfromtcp/internal/response"
 	"github.com/httpfromtcp/internal/server"
@@ -15,15 +16,60 @@ import (
 const port = 42069
 
 func routerHandler(w io.Writer, req *request.Request) *server.HandlerError {
-	path := req.RequestLine.RequestTarget
+	rw := response.NewWriter(w)
 
-	switch path {
+	// Common HTML bodies
+	const html400 = `
+<html>
+  <head>
+    <title>400 Bad Request</title>
+  </head>
+  <body>
+    <h1>Bad Request</h1>
+    <p>Your request honestly kinda sucked.</p>
+  </body>
+</html>`
+	const html500 = `
+<html>
+  <head>
+    <title>500 Internal Server Error</title>
+  </head>
+  <body>
+    <h1>Internal Server Error</h1>
+    <p>Okay, you know what? This one is on me.</p>
+  </body>
+</html>`
+	const html200 = `
+<html>
+  <head>
+    <title>200 OK</title>
+  </head>
+  <body>
+    <h1>Success!</h1>
+    <p>Your request was an absolute banger.</p>
+  </body>
+</html>`
+
+	h := headers.NewHeaders()
+	h.Set("content-type", "text/html")
+
+	switch req.RequestLine.RequestTarget {
 	case "/yourproblem":
-		return server.NewHandlerError(response.BadRequest, "Your problem is not my problem\n")
+		_ = rw.WriteStatusLine(response.BadRequest)
+		_ = rw.WriteHeaders(h)
+		_, _ = rw.WriteBody([]byte(html400))
+		return nil
+
 	case "/myproblem":
-		return server.NewHandlerError(response.InternalServerError, "Woopsie, my bad\n")
+		_ = rw.WriteStatusLine(response.InternalServerError)
+		_ = rw.WriteHeaders(h)
+		_, _ = rw.WriteBody([]byte(html500))
+		return nil
+
 	default:
-		_, _ = io.WriteString(w, "All good, frfr\n")
+		_ = rw.WriteStatusLine(response.Ok)
+		_ = rw.WriteHeaders(h)
+		_, _ = rw.WriteBody([]byte(html200))
 		return nil
 	}
 }
