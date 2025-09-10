@@ -1,10 +1,15 @@
 package main
 
 import (
+	"crypto/sha256"
+	"encoding/hex"
 	"io"
 	"log"
+	"net/http"
 	"os"
 	"os/signal"
+	"strconv"
+	"strings"
 	"syscall"
 
 	"github.com/httpfromtcp/internal/headers"
@@ -50,6 +55,67 @@ func routerHandler(w io.Writer, req *request.Request) *server.HandlerError {
   </body>
 </html>`
 
+	if strings.HasPrefix(req.RequestLine.RequestTarget, "/httpbin/") {
+		path := strings.TrimPrefix(req.RequestLine.RequestTarget, "/httpbin/")
+		up := "https://httpbin.org/" + path
+
+		resp, err := http.Get(up)
+		if err != nil {
+			_ = rw.WriteStatusLine(response.InternalServerError)
+			_ = rw.WriteHeaders(headers.NewHeaders())
+			_, _ = rw.WriteBody([]byte("upstream error\n"))
+			return nil
+		}
+		defer resp.Body.Close()
+
+		_ = rw.WriteStatusLine(response.StatusCode(resp.StatusCode))
+
+		h := headers.NewHeaders()
+		if ct := resp.Header.Get("Content-Type"); ct != "" {
+			h.Set("content-type", ct)
+		}
+		h.Set("transfer-encoding", "chunked")
+		h.Set("trailer", "X-Content-Sha256, X-Content-Length")
+		_ = rw.WriteHeaders(h)
+
+		hasher := sha256.New()
+		var total int64
+
+		buf := make([]byte, 1024)
+		for {
+			n, rerr := resp.Body.Read(buf)
+			if n > 0 {
+				chunk := buf[:n]
+				_, err = hasher.Write(chunk)
+				if err != nil {
+					return nil
+				}
+				total += int64(n)
+
+				if _, err := rw.WriteChunkedBody(buf[:n]); err != nil {
+					log.Printf("client closed during chunk write: %v", err)
+					return nil
+				}
+			}
+			if rerr == io.EOF {
+				break
+			}
+			if rerr != nil {
+				break
+			}
+		}
+
+		sum := hasher.Sum(nil)
+		tr := headers.NewHeaders()
+		tr.Set("X-Content-SHA256", hex.EncodeToString(sum))
+		tr.Set("X-Content-Length", strconv.FormatInt(total, 10))
+
+		if err := rw.WriteTrailers(tr); err != nil {
+			return nil
+		}
+		return nil
+	}
+
 	h := headers.NewHeaders()
 	h.Set("content-type", "text/html")
 
@@ -64,6 +130,20 @@ func routerHandler(w io.Writer, req *request.Request) *server.HandlerError {
 		_ = rw.WriteStatusLine(response.InternalServerError)
 		_ = rw.WriteHeaders(h)
 		_, _ = rw.WriteBody([]byte(html500))
+		return nil
+	case "/video":
+		data, err := os.ReadFile("assets/vim.mp4")
+		if err != nil {
+			_ = rw.WriteStatusLine(response.InternalServerError)
+			_ = rw.WriteHeaders(h)
+			_, _ = rw.WriteBody([]byte(html500))
+			return nil
+		}
+		v := headers.NewHeaders()
+		v.Set("content-type", "video/mp4")
+		_ = rw.WriteStatusLine(response.Ok)
+		_ = rw.WriteHeaders(v)
+		_, _ = rw.WriteBody([]byte(data))
 		return nil
 
 	default:
